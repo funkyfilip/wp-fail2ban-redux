@@ -119,33 +119,36 @@ if ( ! class_exists( 'WP_Fail2Ban_Redux_Logger' ) ) {
 		 * @return null|bool True on success. Null if no message passed. Else, false.
 		 */
 		public function syslog( $message = '', $priority = LOG_NOTICE, $ip = '' ) {
+    // Don't log a message if none was passed.
+    if ( ! empty( $message ) ) {
+        /**
+         * Filters the $priority parameter, which is used to tell
+         * the logging mechanism the message priority level.
+         *
+         * @since 0.1.0
+         *
+         * @param int    $priority The message priority level.
+         * @param string $message  The log message with 'from {IP Address}' appended.
+         */
+        $priority = apply_filters( 'wp_fail2ban_redux_syslog_priority', $priority, $message );
 
-			// Don't log a message is none was passed.
-			if ( ! empty( $message ) ) {
+        // Get the remote IP address if none was passed.
+        if ( empty( $ip ) ) {
+            $ip = $this->get_remote_ip();
+        }
 
-				/**
-				 * Filters the $priority parameter, which is used to tell
-				 * `syslog()` the message priority level.
-				 *
-				 * @see https://secure.php.net/manual/function.syslog.php
-				 *
-				 * @since 0.1.0
-				 *
-				 * @param int    $priority The message priority level.
-				 * @param string $message  The log message with 'from {IP Address}' appended.
-				 */
-				$priority = apply_filters( 'wp_fail2ban_redux_syslog_priority', $priority, $message );
+        // Build the log message.
+        $logMessage = "[PRIORITY {$priority}] {$message} from {$ip}\n";
 
-				// Get the remote IP address if none was passed.
-				if ( empty( $ip ) ) {
-					$ip = $this->get_remote_ip();
-				}
+        // Define the log file path.
+        $logFile = '/var/log/wp_f2b.log';
 
-				return syslog( $priority, "{$message} from {$ip}" );
-			}
+        // Write the log message to the file.
+        return file_put_contents($logFile, $logMessage, FILE_APPEND | LOCK_EX) !== false;
+    }
 
-			return null;
-		}
+    return null;
+}
 
 		/**
 		 * Ends script execution and returns a 403 status code.
